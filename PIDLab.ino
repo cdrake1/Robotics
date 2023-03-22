@@ -30,20 +30,20 @@ const boolean US_ON = true;
 // Head Servo Timing
 unsigned long headCm;
 unsigned long headPm;
-const unsigned long HEAD_MOVEMENT_PERIOD = 400;
+const unsigned long HEAD_MOVEMENT_PERIOD = 800;
 
 // Head servo constants
-const int HEAD_SERVO_PIN = 20;
-const int NUM_HEAD_POSITIONS = 3;
-const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = { 15, 15, 15 };
+const int HEAD_SERVO_PIN = 11;
+const int NUM_HEAD_POSITIONS = 1; //2
+const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {160}; //, 90
 
 // head servo data
 boolean headDirectionClockwise = true;
 int currentHeadPosition = 0;
 
 // Ultra Sonic Sensor constants
-const int ECHO_PIN = 4;
-const int TRIG_PIN = 5;
+const int ECHO_PIN = 20;
+const int TRIG_PIN = 21;
 
 const float MAX_DISTANCE = 100.0;
 
@@ -51,8 +51,8 @@ const float DISTANCE_FACTOR = MAX_DISTANCE / 100;
 const float STOP_DISTANCE = 5;
 
 // Motor constants
-float motorBaseSpeed = 150.0;
-const int MOTOR_MIN_SPEED = -70;
+float motorBaseSpeed = 100.0;
+const int MOTOR_MIN_SPEED = -100;
 // determine the normalization factor based on motorBaseSpeed
 const float MOTOR_FACTOR = motorBaseSpeed / 100;
 
@@ -96,10 +96,17 @@ const float WHEEL_DIAMETER = 3.2;
 const float WHEEL_CIRCUMFERENCE = 10.0531;
 float dist = 0;
 
-const double desiredDistance = (double)30;
+
+
+
+
+
+
+// after this
+const double desiredDistance = (double) 30;  
 double shortestDistance = 100;
 
-const double kp = 2.0;
+const double kp = 0.5;
 const double ki = 0.0;
 const double kd = 0.0;
 
@@ -121,71 +128,79 @@ void setup() {
   pinMode(TRIG_PIN, OUTPUT);
 
   headServo.attach(HEAD_SERVO_PIN);
-  headServo.write(0);
-
+  headServo.write(90);
+  
+ /*
   for (int i = 0; i < NUM_HEAD_POSITIONS; i++) {
     distanceReadings[i] = MAX_DISTANCE;
   }
+  */
 
   // start delay
   delay(3000);
   //buzzer.play("c32");
 }
 
+
+
+
 void loop() {
   // put your main code here, to run repeatedly:
 
+  
   usReadCm();
-
-  //for(int i=0; i<NUM_HEAD_POSITIONS; i++){
-  //if(distanceReadings[currentReadPosition] < shortestDistance)
-  //shortestDistance = distanceReadings[currentReadPosition];
-  //}
+   
 
   //double error = desiredDistance - distanceReadings[currentReadPosition];
   double error = desiredDistance - distance;
   if (error > 20) error = 20;
-  if (error < -100) error = -100;
+  if (error < -50) error = -50;
+
+  double proportional = kp * error;
+
+  kiTotal += error;
+
+  double integral = ki * kiTotal;
+
+  float derivative = kd * (error - priorError);
+
+  priorError = error;
+
+  float pidResult = proportional + integral + derivative;
+
+  setMotors(MOTOR_MIN_SPEED + pidResult, MOTOR_MIN_SPEED - pidResult);
+
+  moveHead();
 
 
+
+  //debugging below
   if (ERROR_DEBUG) {
     Serial.print("Error : ");
     Serial.println(error);
   }
 
-  double proportional = kp * error;
 
   if (PROPORTIONAL_DEBUG) {
     Serial.print("Proportional Error : ");
     Serial.println(proportional);
   }
 
-  kiTotal += error;
-
-  double integral = ki * kiTotal;
-
   if (INTEGRAL_DEBUG) {
     Serial.println(integral);
   }
 
-  float derivative = kd * (error - priorError);
-
-  priorError = error;
 
   if (DERIVATIVE_DEBUG) {
     Serial.println(derivative);
   }
 
-  float pidResult = proportional + integral + derivative;
 
   if (PID_DEBUG) {
     Serial.print("PID Result : ");
     Serial.println(pidResult);
   }
 
-  setMotors(MOTOR_MIN_SPEED - pidResult, MOTOR_MIN_SPEED + pidResult);
-
-  moveHead();
 }
 
 void moveHead() {
@@ -200,7 +215,7 @@ void moveHead() {
     }
 
     // position head to the current position in the array
-    // headServo.write(HEAD_POSITIONS[currentHeadPosition]);
+    headServo.write(HEAD_POSITIONS[currentHeadPosition]);
 
     // Set next head position
     // Moves servo to the next head position and changes direction when needed
@@ -208,14 +223,17 @@ void moveHead() {
       if (currentHeadPosition >= (NUM_HEAD_POSITIONS - 1)) {
         headDirectionClockwise = !headDirectionClockwise;
         currentHeadPosition--;
-      } else {
+      } 
+      else {
         currentHeadPosition++;
       }
-    } else {
+    } 
+    else {
       if (currentHeadPosition <= 0) {
         headDirectionClockwise = !headDirectionClockwise;
         currentHeadPosition++;
-      } else {
+      } 
+      else {
         currentHeadPosition--;
       }
     }
@@ -226,6 +244,7 @@ void moveHead() {
     usReadFlag = false;
   }
 }
+
 
 void usReadCm() {
   usCm = millis();
@@ -278,12 +297,6 @@ void usReadCm() {
       Serial.print("Distance : ");
       Serial.println(distance);
 
-      // Serial.print("Distnace Readings: [ ");
-      // for (int i = 0; i < NUM_HEAD_POSITIONS; i++) {
-      //   Serial.print(distanceReadings[i]);
-      //   if (i < (NUM_HEAD_POSITIONS - 1)) Serial.print(" - ");
-      // }
-      // Serial.println(" ]");
     }
 
     usReadFlag = true;
@@ -292,6 +305,8 @@ void usReadCm() {
     usPm = usCm;
   }
 }
+
+
 
 void setMotors(float leftSpeed, float rightSpeed) {
 
