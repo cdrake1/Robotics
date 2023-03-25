@@ -1,10 +1,7 @@
-#include <Servo.h>
-
 //This program allows for the Pololu3piPlus to follow
 //an object using an Ultrasonic Sensor and turn its head
 //using a servo.
 //By Ryan Rosenkranse
-
 
 #include <Pololu3piPlus32U4.h>
 #include <Servo.h>
