@@ -19,9 +19,9 @@ Servo headServo;
 // switches
 const boolean HEAD_DEBUG = false;
 const boolean TIMING_DEBUG = false;
-const boolean US_DEBUG = true;
-const boolean MOTOR_DEBUG = false;
-const boolean ERROR_DEBUG = false;
+const boolean US_DEBUG = false;
+const boolean MOTOR_DEBUG = true;
+const boolean ERROR_DEBUG = true;
 const boolean PROPORTIONAL_DEBUG = false;
 const boolean INTEGRAL_DEBUG = false;
 const boolean DERIVATIVE_DEBUG = false;
@@ -29,6 +29,7 @@ const boolean PID_DEBUG = false;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
+const boolean MOTORS_ON = true;
 
 // Head Servo Timing
 unsigned long headCm;
@@ -48,13 +49,13 @@ int currentHeadPosition = 0;
 const int ECHO_PIN = 12;
 const int TRIG_PIN = 18;
 
-const float MAX_DISTANCE = 30.0;
+const float MAX_DISTANCE = 40.0;
 
 const float DISTANCE_FACTOR = MAX_DISTANCE / 100;
 const float STOP_DISTANCE = 5;
 
 // Motor constants
-float MOTOR_BASE_SPEED = -80.0;
+float MOTOR_BASE_SPEED = -50.0;
 const int MOTOR_MIN_SPEED = 30;
 // determine the normalization factor based on motorBaseSpeed
 const float MOTOR_FACTOR =  MOTOR_BASE_SPEED / 100;
@@ -80,7 +81,7 @@ float distanceReadings[NUM_HEAD_POSITIONS];
 // Motor Timing
 unsigned long motorCm;
 unsigned long motorPm;
-const unsigned long MOTOR_PERIOD = 200;
+const unsigned long MOTOR_PERIOD = 250;
 
 float distance = 0;
 
@@ -99,11 +100,12 @@ const float WHEEL_DIAMETER = 3.2;
 const float WHEEL_CIRCUMFERENCE = 10.0531;
 float dist = 0;
 
-const double desiredDistance = (double) 10.0;
+const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
-const double kp[] = {6.0,6.0,3.0};
-const double ki[] = {0.0,0.0,0.0};
+
+const double kp[] = {1.6,1.6,5.0};
+const double ki[] = {0.16,0.16,0.6};
 const double kd[] = {0.0,0.0,0.0};
 
 double kiTotal[] = {0,0,0};
@@ -148,52 +150,62 @@ void loop() {
     pidCm = millis();
     if(pidCm > pidPm + PID_PERIOD){
     
-    error[currentReadPosition] = desiredDistance - distanceReadings[currentReadPosition];
+    // calculate the error
+    error[currentReadPosition] = desiredDistance[currentReadPosition] - distanceReadings[currentReadPosition];
     
+    // Used for Error Debugging
     if(ERROR_DEBUG){
       Serial.print("The error is :");
       Serial.println(error[currentReadPosition]);
     }
 
+    // calculate the proprotional value
     proportional[currentReadPosition] = kp[currentReadPosition] * error[currentReadPosition];
 
+    // Used for Proportional Debugging
     if(PROPORTIONAL_DEBUG){
       Serial.println(proportional[currentReadPosition]);
     }
 
-
+    // Calculate the Integral value
     kiTotal[currentReadPosition] += error[currentReadPosition];
+
+    if(kiTotal[currentReadPosition] > 50)
+      kiTotal[currentReadPosition]/=2;
 
     integral[currentReadPosition] = ki[currentReadPosition] * kiTotal[currentReadPosition];
 
+    // Used for Integral Debugging
     if(INTEGRAL_DEBUG){
       Serial.println(integral[currentReadPosition]);
     }
 
+    // calculate the Derivative value
     derivative[currentReadPosition] = kd[currentReadPosition] * (error[currentReadPosition] - priorError[currentReadPosition]);
 
+    // sets the prior error
     priorError[currentReadPosition] = error[currentReadPosition];
 
+    // Used for Derivative Debugging
     if(DERIVATIVE_DEBUG){
       Serial.println(derivative[currentReadPosition]);
     }
 
+    // Calcuate the Pid Result by taking the sum of the Proportional, Integral and Derivative values
     pidResult[currentReadPosition] = proportional[currentReadPosition] + integral[currentReadPosition] + derivative[currentReadPosition];
 
+    // Used for PID Debugging
     if(PID_DEBUG){
       Serial.println(pidResult[currentReadPosition]);
     }
     
+    //Set the motors given the result
     setMotors(pidResult[currentReadPosition]);
     
-    //setMotors(-MOTOR_BASE_SPEED, -MOTOR_BASE_SPEED);
-
     pidPm = pidCm;
     }
 
-
     moveHead();
-
 }
 
 void moveHead() {
@@ -306,6 +318,9 @@ void moveHead() {
 
 void setMotors(float pidResult) {
 
+  motorCm = millis();
+  if(motorCm > motorPm + MOTOR_PERIOD) {
+
   // start out with the MOTOR_BASE_SPEED
   float leftSpeed = MOTOR_BASE_SPEED;
   float rightSpeed = MOTOR_BASE_SPEED;
@@ -317,10 +332,10 @@ void setMotors(float pidResult) {
     Serial.println((-pidResult+MOTOR_BASE_SPEED));
     }
 
-    if(HEAD_POSITIONS[currentReadPosition] > 90)
-      motors.setSpeeds((pidResult+leftSpeed), (-pidResult+rightSpeed));
-   else
-    motors.setSpeeds((-pidResult+leftSpeed), (pidResult+rightSpeed));
+    motors.setSpeeds((pidResult+leftSpeed), (-pidResult+rightSpeed));
+
+  motorPm = motorCm;
+  }
 }
 
 
