@@ -1,7 +1,4 @@
-//This program allows for the Pololu3piPlus to follow
-//an object using an Ultrasonic Sensor and turn its head
-//using a servo.
-//By Ryan Rosenkranse
+
 
 #include <Pololu3piPlus32U4.h>
 #include <Servo.h>
@@ -34,17 +31,17 @@ unsigned long headPm;
 const unsigned long HEAD_MOVEMENT_PERIOD = 250;
 
 // Head servo constants
-const int HEAD_SERVO_PIN = 20;
+const int HEAD_SERVO_PIN = 11;
 const int NUM_HEAD_POSITIONS = 3;
-const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {180, 180, 90};
+const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {170, 170, 90};
 
 // head servo data
 boolean headDirectionClockwise = true;
 int currentHeadPosition = 0;
 
 // Ultra Sonic Sensor constants
-const int ECHO_PIN = 12;
-const int TRIG_PIN = 18;
+const int ECHO_PIN = 20;
+const int TRIG_PIN = 21;
 
 const float MAX_DISTANCE = 40.0;
 
@@ -52,7 +49,7 @@ const float DISTANCE_FACTOR = MAX_DISTANCE / 100;
 const float STOP_DISTANCE = 5;
 
 // Motor constants
-float MOTOR_BASE_SPEED = -50.0;
+float MOTOR_BASE_SPEED = -100.0;
 const int MOTOR_MIN_SPEED = 30;
 // determine the normalization factor based on motorBaseSpeed
 const float MOTOR_FACTOR =  MOTOR_BASE_SPEED / 100;
@@ -97,13 +94,13 @@ const float WHEEL_DIAMETER = 3.2;
 const float WHEEL_CIRCUMFERENCE = 10.0531;
 float dist = 0;
 
-const double desiredDistance[] =  {20.0,20.0,40.0};
+const double desiredDistance[] =  {30.0,30.0,50.0};
 double shortestDistance = distanceReadings[0];
 
 
 const double kp[] = {1.6,1.6,5.0};
 const double ki[] = {0.16,0.16,0.6};
-const double kd[] = {0.0,0.0,0.0};
+const double kd[] = {1.0,1.0,1.0};
 
 double kiTotal[] = {0,0,0};
 double priorError[] = {0,0,0};
@@ -334,7 +331,6 @@ void setMotors(float pidResult) {
   motorPm = motorCm;
   }
 }
-
 
 
 
