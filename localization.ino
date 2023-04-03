@@ -91,8 +91,7 @@ long prevRight = 0;
 const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
-
-const double kp[] = {5,5,5};
+const double kp[] = {15,15,15};
 const double ki[] = {0.0,0.0,0.0};
 const double kd[] = {0.0,0.0,0.0};
 
@@ -172,9 +171,9 @@ void loop() {
     deltaS = (Sl + Sr)/2;
 
     //calculate the current location of X and Y 
-    deltaTheta = (Sl - Sr)/4.5;
-    deltaX = deltaS * cos(currentTheta + deltaTheta/2);
-    deltaY = deltaS * sin(currentTheta + deltaTheta/2);
+    deltaTheta = (Sl - Sr)/8.5;
+    deltaX = abs(deltaS * cos(currentTheta + deltaTheta/2));
+    deltaY = abs(deltaS * sin(currentTheta + deltaTheta/2));
 
     if(XY_DEBUG){
       Serial.print("X: ");
@@ -197,6 +196,12 @@ void loop() {
     }
 
     error = currentTheta - deltaTheta;
+
+    if(error>PI){
+      error = PI;
+    }else if(error<-PI){
+      error = -PI;
+    }
     
     // Used for Error Debugging
     if(ERROR_DEBUG){
