@@ -16,13 +16,14 @@ Servo headServo;
 const boolean HEAD_DEBUG = false;
 const boolean TIMING_DEBUG = false;
 const boolean US_DEBUG = false;
-const boolean MOTOR_DEBUG = true;
-const boolean ERROR_DEBUG = true;
+const boolean MOTOR_DEBUG = false;
+const boolean ERROR_DEBUG = false;
 const boolean PROPORTIONAL_DEBUG = false;
 const boolean INTEGRAL_DEBUG = false;
 const boolean DERIVATIVE_DEBUG = false;
 const boolean PID_DEBUG = false;
 const boolean XY_DEBUG = true;
+const boolean THETA_DEBUG = true;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
@@ -127,6 +128,7 @@ float deltaY = 0.0F;
 float deltaTheta = 0.0F;
 float xError;
 float yError;
+float distanceFromGoal;
 
 //DIAMETER AND CIRCUMFERENCE ARE IN CENTIMETERS
 const int CLICKS_PER_ROTATION = 12;
@@ -166,7 +168,10 @@ void loop() {
   pidCm = millis();
   if(pidCm > pidPm + PID_PERIOD){
 
+    //calculate the location of the center of the robot
     deltaS = (Sl + Sr)/2;
+
+    //calculate the current location of X and Y 
     deltaTheta = (Sl - Sr)/4.5;
     deltaX = deltaS * cos(currentTheta + deltaTheta/2);
     deltaY = deltaS * sin(currentTheta + deltaTheta/2);
@@ -178,19 +183,28 @@ void loop() {
       Serial.println(deltaY);
     }
 
-    xError = xGoals[currentGoal] - deltaX;
+    // calculate the correct orientation to the goal
+    currentTheta = atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX));
 
-    // calculate the error
-    error[currentGoal] = xGoals[currentGoal] - deltaX;
+    // calculate the distance from the goal
+    distanceFromGoal = sqrt(pow((xGoals[currentGoal]-deltaX),2)+pow((deltaY-yGoals[currentGoal]),2));
+
+    if(THETA_DEBUG){
+      Serial.print("Theta: ");
+      Serial.print(currentTheta);
+      Serial.print(" DistanceFromGoal: ");
+      Serial.println(distanceFromGoal);
+    }
+
     
     // Used for Error Debugging
     if(ERROR_DEBUG){
       Serial.print("The error is :");
-      Serial.println(error[currentGoal]);
+      Serial.println(distanceFromGoal);
     }
 
     // calculate the proprotional value
-    proportional[currentGoal] = kp[currentGoal] * error[currentGoal];
+    proportional[currentGoal] = kp[currentGoal] * distanceFromGoal;
 
     // Used for Proportional Debugging
     if(PROPORTIONAL_DEBUG){
@@ -198,7 +212,7 @@ void loop() {
     }
 
     // Calculate the Integral value
-    kiTotal[currentGoal] += error[currentGoal];
+    kiTotal[currentGoal] += distanceFromGoal;
 
     if(kiTotal[currentGoal] > 50)
       kiTotal[currentGoal]/=2;
@@ -211,10 +225,10 @@ void loop() {
     }
 
     // calculate the Derivative value
-    derivative[currentGoal] = kd[currentGoal] * (error[currentGoal] - priorError[currentGoal]);
+    derivative[currentGoal] = kd[currentGoal] * (distanceFromGoal - priorError[currentGoal]);
 
     // sets the prior error
-    priorError[currentGoal] = error[currentGoal];
+    priorError[currentGoal] = distanceFromGoal;
 
     // Used for Derivative Debugging
     if(DERIVATIVE_DEBUG){
@@ -225,18 +239,18 @@ void loop() {
     pidResult[currentGoal] = proportional[currentGoal] + integral[currentGoal] + derivative[currentGoal];
 
 
-    if(abs(xError) < 1 && abs(yError) < 1){
+    
+    if(distanceFromGoal < 1.0){
       currentGoal++;
-      kiTotal[currentGoal] = 0;
       buzzer.play("c32");
     }
-
+    
 
     if(currentGoal == NUMBER_OF_GOALS){
       motors.setSpeeds(0, 0);
     }else{  
     //Set the motors given the result
-    setMotors(pidResult[currentGoal]);
+      setMotors(pidResult[currentGoal]*currentTheta);
     }
 
     pidPm = pidCm;
@@ -257,10 +271,12 @@ void checkEncoders() {
     Sl += ((countsLeft -prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
     Sr += ((countsRight -prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
 
+    if(MOTOR_DEBUG){
     Serial.print("Left: ");
     Serial.print(Sl);
     Serial.print("Right: ");
     Serial.println(Sr);
+    }
 
     prevLeft = countsLeft;
     prevRight = countsRight;
@@ -397,12 +413,3 @@ void setMotors(float pidResult) {
   motorPm = motorCm;
   }
 }
-
-
-
-
-
-
-
-
-
