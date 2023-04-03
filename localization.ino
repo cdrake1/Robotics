@@ -92,7 +92,7 @@ const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
 
-const double kp[] = {1.6,1.6,1.6};
+const double kp[] = {5,5,5};
 const double ki[] = {0.0,0.0,0.0};
 const double kd[] = {0.0,0.0,0.0};
 
@@ -196,15 +196,16 @@ void loop() {
       Serial.println(distanceFromGoal);
     }
 
+    error = currentTheta - deltaTheta
     
     // Used for Error Debugging
     if(ERROR_DEBUG){
       Serial.print("The error is :");
-      Serial.println(distanceFromGoal);
+      Serial.println(error);
     }
 
     // calculate the proprotional value
-    proportional[currentGoal] = kp[currentGoal] * distanceFromGoal;
+    proportional[currentGoal] = kp[currentGoal] * error;
 
     // Used for Proportional Debugging
     if(PROPORTIONAL_DEBUG){
@@ -212,7 +213,7 @@ void loop() {
     }
 
     // Calculate the Integral value
-    kiTotal[currentGoal] += distanceFromGoal;
+    kiTotal[currentGoal] += error;
 
     if(kiTotal[currentGoal] > 50)
       kiTotal[currentGoal]/=2;
@@ -225,10 +226,10 @@ void loop() {
     }
 
     // calculate the Derivative value
-    derivative[currentGoal] = kd[currentGoal] * (distanceFromGoal - priorError[currentGoal]);
+    derivative[currentGoal] = kd[currentGoal] * (error - priorError[currentGoal]);
 
     // sets the prior error
-    priorError[currentGoal] = distanceFromGoal;
+    priorError[currentGoal] = error;
 
     // Used for Derivative Debugging
     if(DERIVATIVE_DEBUG){
@@ -237,7 +238,6 @@ void loop() {
 
     // Calcuate the Pid Result by taking the sum of the Proportional, Integral and Derivative values
     pidResult[currentGoal] = proportional[currentGoal] + integral[currentGoal] + derivative[currentGoal];
-
 
     
     if(distanceFromGoal < 1.0){
@@ -250,7 +250,7 @@ void loop() {
       motors.setSpeeds(0, 0);
     }else{  
     //Set the motors given the result
-      setMotors(pidResult[currentGoal]*currentTheta);
+      setMotors(pidResult[currentGoal]);
     }
 
     pidPm = pidCm;
