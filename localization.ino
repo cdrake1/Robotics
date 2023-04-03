@@ -111,7 +111,7 @@ float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
 float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
 int currentGoal = 0;
 
-float error[NUMBER_OF_GOALS];
+float error;
 float proportional[NUMBER_OF_GOALS];
 float integral[NUMBER_OF_GOALS];
 float derivative[NUMBER_OF_GOALS];
@@ -196,7 +196,7 @@ void loop() {
       Serial.println(distanceFromGoal);
     }
 
-    error = currentTheta - deltaTheta
+    error = currentTheta - deltaTheta;
     
     // Used for Error Debugging
     if(ERROR_DEBUG){
