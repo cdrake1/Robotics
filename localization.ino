@@ -17,7 +17,7 @@ const boolean HEAD_DEBUG = false;
 const boolean TIMING_DEBUG = false;
 const boolean US_DEBUG = false;
 const boolean MOTOR_DEBUG = false;
-const boolean ERROR_DEBUG = false;
+const boolean ERROR_DEBUG = true;
 const boolean PROPORTIONAL_DEBUG = false;
 const boolean INTEGRAL_DEBUG = false;
 const boolean DERIVATIVE_DEBUG = false;
@@ -91,7 +91,7 @@ long prevRight = 0;
 const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
-const double kp[] = {15,15,15};
+const double kp[] = {20,20,20};
 const double ki[] = {0.0,0.0,0.0};
 const double kd[] = {0.0,0.0,0.0};
 
@@ -118,16 +118,18 @@ float pidResult[NUMBER_OF_GOALS];
 
 float currentX = 0.0F;
 float currentY = 0.0F;
-float currentTheta = 0.0F;
+float pose = 0;
+float desiredTheta = 0.0;
 float Sl = 0.0F;
 float Sr = 0.0F;
-float deltaS = 0.0F;
-float deltaX = 0.0F;
-float deltaY = 0.0F;
-float deltaTheta = 0.0F;
+float deltaS = 0.0;
+float deltaX = 0.0;
+float deltaY = 0.0;
+float deltaTheta = 0.0;
 float xError;
 float yError;
 float distanceFromGoal;
+float prevDistanceFromGoal;
 
 //DIAMETER AND CIRCUMFERENCE ARE IN CENTIMETERS
 const int CLICKS_PER_ROTATION = 12;
@@ -168,41 +170,45 @@ void loop() {
   if(pidCm > pidPm + PID_PERIOD){
 
     //calculate the location of the center of the robot
-    deltaS = (Sl + Sr)/2;
+    deltaS = (Sr + Sl)/2;
 
     //calculate the current location of X and Y 
-    deltaTheta = (Sl - Sr)/8.5;
-    deltaX = abs(deltaS * cos(currentTheta + deltaTheta/2));
-    deltaY = abs(deltaS * sin(currentTheta + deltaTheta/2));
+    deltaTheta = (Sr - Sl)/4.25;
+    deltaX = -(deltaS * cos(pose + deltaTheta/2));
+    deltaY = -(deltaS * sin(pose + deltaTheta/2));
 
     if(XY_DEBUG){
       Serial.print("X: ");
       Serial.print(deltaX);
       Serial.print(" Y: ");
       Serial.println(deltaY);
+      Serial.print("Pose: ");
+      Serial.println(deltaTheta);
     }
 
     // calculate the correct orientation to the goal
-    currentTheta = atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX));
+    desiredTheta = atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX));
 
     // calculate the distance from the goal
     distanceFromGoal = sqrt(pow((xGoals[currentGoal]-deltaX),2)+pow((deltaY-yGoals[currentGoal]),2));
 
+    if(desiredTheta > PI){
+      desiredTheta = PI;
+    }else if(desiredTheta < 0){
+      desiredTheta = 0;
+    }
+    
     if(THETA_DEBUG){
       Serial.print("Theta: ");
-      Serial.print(currentTheta);
+      Serial.print(desiredTheta);
       Serial.print(" DistanceFromGoal: ");
       Serial.println(distanceFromGoal);
     }
 
-    error = currentTheta - deltaTheta;
-
-    if(error>PI){
-      error = PI;
-    }else if(error<-PI){
-      error = -PI;
-    }
     
+
+    error = desiredTheta - deltaTheta;
+        
     // Used for Error Debugging
     if(ERROR_DEBUG){
       Serial.print("The error is :");
@@ -244,13 +250,11 @@ void loop() {
     // Calcuate the Pid Result by taking the sum of the Proportional, Integral and Derivative values
     pidResult[currentGoal] = proportional[currentGoal] + integral[currentGoal] + derivative[currentGoal];
 
-    
-    if(distanceFromGoal < 1.0){
+    if(distanceFromGoal < 2.0){
       currentGoal++;
       buzzer.play("c32");
     }
     
-
     if(currentGoal == NUMBER_OF_GOALS){
       motors.setSpeeds(0, 0);
     }else{  
@@ -258,6 +262,7 @@ void loop() {
       setMotors(pidResult[currentGoal]);
     }
 
+    pose = deltaTheta;
     pidPm = pidCm;
   }  
 
@@ -413,7 +418,7 @@ void setMotors(float pidResult) {
     Serial.println((-pidResult+MOTOR_BASE_SPEED));
     }
 
-    motors.setSpeeds((leftSpeed+pidResult), (rightSpeed-pidResult));
+  motors.setSpeeds((leftSpeed-pidResult), (rightSpeed+pidResult));
 
   motorPm = motorCm;
   }
