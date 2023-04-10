@@ -173,7 +173,7 @@ void loop() {
     deltaS = (Sr + Sl)/2;
 
     //calculate the current location of X and Y 
-    deltaTheta = (Sr - Sl)/4.25;
+    deltaTheta = (Sr - Sl)/8.5;
     deltaX = -(deltaS * cos(pose + deltaTheta/2));
     deltaY = -(deltaS * sin(pose + deltaTheta/2));
 
