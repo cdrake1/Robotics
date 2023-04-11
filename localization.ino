@@ -17,13 +17,13 @@ const boolean HEAD_DEBUG = false;
 const boolean TIMING_DEBUG = false;
 const boolean US_DEBUG = false;
 const boolean MOTOR_DEBUG = false;
-const boolean ERROR_DEBUG = true;
+const boolean ERROR_DEBUG = false;
 const boolean PROPORTIONAL_DEBUG = false;
 const boolean INTEGRAL_DEBUG = false;
 const boolean DERIVATIVE_DEBUG = false;
 const boolean PID_DEBUG = false;
 const boolean XY_DEBUG = true;
-const boolean THETA_DEBUG = true;
+const boolean THETA_DEBUG = false;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
@@ -91,7 +91,7 @@ long prevRight = 0;
 const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
-const double kp[] = {20,20,20};
+const double kp[] = {15,15,15};
 const double ki[] = {0.0,0.0,0.0};
 const double kd[] = {0.0,0.0,0.0};
 
@@ -106,8 +106,8 @@ boolean pidFlag = false;
 
 // goals
 const int NUMBER_OF_GOALS = 3;
-float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
-float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
+float xGoals[NUMBER_OF_GOALS] = {10, 10, 0};
+float yGoals[NUMBER_OF_GOALS] = {0, 10, 0};
 int currentGoal = 0;
 
 float error;
@@ -118,7 +118,7 @@ float pidResult[NUMBER_OF_GOALS];
 
 float currentX = 0.0F;
 float currentY = 0.0F;
-float pose = 0;
+float currentTheta = 0;
 float desiredTheta = 0.0;
 float Sl = 0.0F;
 float Sr = 0.0F;
@@ -172,10 +172,12 @@ void loop() {
     //calculate the location of the center of the robot
     deltaS = (Sr + Sl)/2;
 
-    //calculate the current location of X and Y 
+    //calculate the current location of X and Y     
     deltaTheta = (Sr - Sl)/8.5;
-    deltaX = -(deltaS * cos(pose + deltaTheta/2));
-    deltaY = -(deltaS * sin(pose + deltaTheta/2));
+    if(deltaTheta < 0)
+      deltaTheta = abs(deltaTheta)*2;
+    deltaX = (deltaS * cos(currentTheta + deltaTheta/2));
+    deltaY = (deltaS * sin(currentTheta + deltaTheta/2));
 
     if(XY_DEBUG){
       Serial.print("X: ");
@@ -183,21 +185,16 @@ void loop() {
       Serial.print(" Y: ");
       Serial.println(deltaY);
       Serial.print("Pose: ");
-      Serial.println(deltaTheta);
+      Serial.println(currentTheta);
     }
 
     // calculate the correct orientation to the goal
-    desiredTheta = atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX));
+    desiredTheta = abs(atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX)));
 
     // calculate the distance from the goal
     distanceFromGoal = sqrt(pow((xGoals[currentGoal]-deltaX),2)+pow((deltaY-yGoals[currentGoal]),2));
 
-    if(desiredTheta > PI){
-      desiredTheta = PI;
-    }else if(desiredTheta < 0){
-      desiredTheta = 0;
-    }
-    
+  
     if(THETA_DEBUG){
       Serial.print("Theta: ");
       Serial.print(desiredTheta);
@@ -262,7 +259,7 @@ void loop() {
       setMotors(pidResult[currentGoal]);
     }
 
-    pose = deltaTheta;
+    currentTheta = deltaTheta;
     pidPm = pidCm;
   }  
 
@@ -273,18 +270,18 @@ void checkEncoders() {
 
   //Retrieves the counts of the left and right encoders, when current time exceeds the previous time plus the period constant
   CECm = millis();
-  if(CECm> CEPm + CE_PERIOD){
+  if(CECm > CEPm + CE_PERIOD){
     countsLeft += encoders.getCountsAndResetLeft();
     countsRight += encoders.getCountsAndResetRight();
 
     //Sl and Sr are incremented by the distance traveled in centimeters
-    Sl += ((countsLeft -prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
-    Sr += ((countsRight -prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
+    Sr -= ((countsLeft -prevLeft) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
+    Sl -= ((countsRight -prevRight) / (CLICKS_PER_ROTATION * GEAR_RATIO) * WHEEL_CIRCUMFERENCE);
 
     if(MOTOR_DEBUG){
     Serial.print("Left: ");
     Serial.print(Sl);
-    Serial.print("Right: ");
+    Serial.print(" Right: ");
     Serial.println(Sr);
     }
 
@@ -410,13 +407,6 @@ void setMotors(float pidResult) {
   // start out with the MOTOR_BASE_SPEED
   float leftSpeed = MOTOR_BASE_SPEED;
   float rightSpeed = MOTOR_BASE_SPEED;
-
-    if(MOTOR_DEBUG){
-    Serial.print("Left: ");
-    Serial.print((pidResult+MOTOR_BASE_SPEED));
-    Serial.print(" Right: ");
-    Serial.println((-pidResult+MOTOR_BASE_SPEED));
-    }
 
   motors.setSpeeds((leftSpeed-pidResult), (rightSpeed+pidResult));
 
