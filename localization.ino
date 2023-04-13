@@ -17,13 +17,13 @@ const boolean HEAD_DEBUG = false;
 const boolean TIMING_DEBUG = false;
 const boolean US_DEBUG = false;
 const boolean MOTOR_DEBUG = false;
-const boolean ERROR_DEBUG = false;
+const boolean ERROR_DEBUG = true;
 const boolean PROPORTIONAL_DEBUG = false;
 const boolean INTEGRAL_DEBUG = false;
 const boolean DERIVATIVE_DEBUG = false;
 const boolean PID_DEBUG = false;
 const boolean XY_DEBUG = true;
-const boolean THETA_DEBUG = false;
+const boolean THETA_DEBUG = true;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
@@ -79,7 +79,7 @@ float distanceReadings[NUM_HEAD_POSITIONS];
 // Motor Timing
 unsigned long motorCm;
 unsigned long motorPm;
-const unsigned long MOTOR_PERIOD = 12;
+const unsigned long MOTOR_PERIOD = 8;
 
 float distance = 0;
 
@@ -91,7 +91,7 @@ long prevRight = 0;
 const double desiredDistance[] =  {20.0,20.0,40.0};
 double shortestDistance = distanceReadings[0];
 
-const double kp[] = {15,15,15};
+const double kp[] = {20,20,20};
 const double ki[] = {0.0,0.0,0.0};
 const double kd[] = {0.0,0.0,0.0};
 
@@ -100,14 +100,14 @@ double priorError[] = {0,0,0};
 
 unsigned long pidCm;
 unsigned long pidPm;
-const unsigned long PID_PERIOD = 12;
+const unsigned long PID_PERIOD = 8;
 
 boolean pidFlag = false;
 
 // goals
-const int NUMBER_OF_GOALS = 3;
-float xGoals[NUMBER_OF_GOALS] = {10, 10, 0};
-float yGoals[NUMBER_OF_GOALS] = {0, 10, 0};
+const int NUMBER_OF_GOALS =3;
+float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
+float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
 int currentGoal = 0;
 
 float error;
@@ -118,10 +118,12 @@ float pidResult[NUMBER_OF_GOALS];
 
 float currentX = 0.0F;
 float currentY = 0.0F;
-float currentTheta = 0;
+float currentTheta = 0.0;
 float desiredTheta = 0.0;
 float Sl = 0.0F;
 float Sr = 0.0F;
+float previousSl = 0.0F;
+float previousSr = 0.0F;
 float deltaS = 0.0;
 float deltaX = 0.0;
 float deltaY = 0.0;
@@ -140,7 +142,7 @@ float dist = 0;
 
 unsigned long CECm;
 unsigned long CEPm;
-const unsigned long CE_PERIOD = 12;
+const unsigned long CE_PERIOD = 8;
 
 void setup() {
   // put your setup code here, to run once:
@@ -170,45 +172,46 @@ void loop() {
   if(pidCm > pidPm + PID_PERIOD){
 
     //calculate the location of the center of the robot
-    deltaS = (Sr + Sl)/2;
+    deltaS = ((Sr-previousSr) + (Sl-previousSl))/2;
 
     //calculate the current location of X and Y     
-    deltaTheta = (Sr - Sl)/8.5;
-    if(deltaTheta < 0)
-      deltaTheta = abs(deltaTheta)*2;
-    deltaX = (deltaS * cos(currentTheta + deltaTheta/2));
-    deltaY = (deltaS * sin(currentTheta + deltaTheta/2));
+    deltaTheta = ((Sr-previousSr) - (Sl-previousSl))/8.5;
+
+    deltaX = deltaS * cos(currentTheta + deltaTheta/2);
+    deltaY = deltaS * sin(currentTheta + deltaTheta/2);
+
+    currentX += deltaX;
+    currentY += deltaY;
 
     if(XY_DEBUG){
       Serial.print("X: ");
-      Serial.print(deltaX);
+      Serial.print(currentX);
       Serial.print(" Y: ");
-      Serial.println(deltaY);
-      Serial.print("Pose: ");
-      Serial.println(currentTheta);
+      Serial.print(currentY);
+      Serial.print(" current Theta: ");
+      Serial.print(currentTheta);
+      Serial.print(" delta Theta: ");
+      Serial.print(deltaTheta);
     }
 
     // calculate the correct orientation to the goal
-    desiredTheta = abs(atan2((yGoals[currentGoal]-deltaY),(xGoals[currentGoal]-deltaX)));
+    desiredTheta = atan2((yGoals[currentGoal]-currentY),(xGoals[currentGoal]-currentX));
 
     // calculate the distance from the goal
-    distanceFromGoal = sqrt(pow((xGoals[currentGoal]-deltaX),2)+pow((deltaY-yGoals[currentGoal]),2));
+    distanceFromGoal = sqrt(pow((xGoals[currentGoal]-currentX),2)+pow((currentY-yGoals[currentGoal]),2));
 
-  
     if(THETA_DEBUG){
-      Serial.print("Theta: ");
+      Serial.print(" Desired Theta: ");
       Serial.print(desiredTheta);
       Serial.print(" DistanceFromGoal: ");
-      Serial.println(distanceFromGoal);
+      Serial.print(distanceFromGoal);
     }
 
-    
-
-    error = desiredTheta - deltaTheta;
+    error = fabs(desiredTheta - currentTheta);
         
     // Used for Error Debugging
     if(ERROR_DEBUG){
-      Serial.print("The error is :");
+      Serial.print(" The error is :");
       Serial.println(error);
     }
 
@@ -259,7 +262,11 @@ void loop() {
       setMotors(pidResult[currentGoal]);
     }
 
-    currentTheta = deltaTheta;
+    currentTheta += deltaTheta;
+    currentTheta = fmod(currentTheta,PI);
+
+    previousSl = Sl;
+    previousSr = Sr;
     pidPm = pidCm;
   }  
 
@@ -413,3 +420,11 @@ void setMotors(float pidResult) {
   motorPm = motorCm;
   }
 }
+
+
+
+
+
+
+
+
