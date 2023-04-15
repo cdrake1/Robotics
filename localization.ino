@@ -105,9 +105,9 @@ const unsigned long PID_PERIOD = 8;
 boolean pidFlag = false;
 
 // goals
-const int NUMBER_OF_GOALS = 3;
-float xGoals[NUMBER_OF_GOALS] = {30, 30, 0};
-float yGoals[NUMBER_OF_GOALS] = {30, 60, 0};
+const int NUMBER_OF_GOALS = 4;
+float xGoals[NUMBER_OF_GOALS] = {30, 30, 0, 0};
+float yGoals[NUMBER_OF_GOALS] = {0, 30, 30, 0};
 int currentGoal = 0;
 
 float error;
@@ -208,7 +208,11 @@ void loop() {
     }
 
     error = desiredTheta - currentTheta;
-        
+
+    // checks to see if the other direction is shorter
+    if((2*PI)+error < abs(error))
+      error = (2*PI)+error;
+    
     // Used for Error Debugging
     if(ERROR_DEBUG){
       Serial.print(" The error is :");
@@ -263,9 +267,15 @@ void loop() {
     }
 
     // update the current theta
-    currentTheta += deltaTheta;
-    currentTheta = fmod(currentTheta,PI);
-
+    if((currentTheta + deltaTheta) > PI){ 
+      currentTheta = - PI;
+      currentTheta += deltaTheta;
+    }else if((currentTheta + deltaTheta) < -PI){
+      currentTheta = PI;
+      currentTheta += deltaTheta;
+    }else{
+      currentTheta += deltaTheta;
+    }
     
     previousSl = Sl;
     previousSr = Sr;
