@@ -1,6 +1,6 @@
 //This program implements a full localization controller
 //for a pololu 3pi+ in 2D Cartesian space.
-//By Ryan Rosenkranse
+//By My Mom
 
 #include <Pololu3piPlus32U4.h>
 #include <Servo.h>
