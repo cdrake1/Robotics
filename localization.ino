@@ -35,7 +35,7 @@ unsigned long headPm;
 const unsigned long HEAD_MOVEMENT_PERIOD = 250;
 
 // Head servo constants
-const int HEAD_SERVO_PIN = 20;
+const int HEAD_SERVO_PIN = 11;
 const int NUM_HEAD_POSITIONS = 3;
 const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {180, 180, 90};
 
@@ -44,8 +44,8 @@ boolean headDirectionClockwise = true;
 int currentHeadPosition = 0;
 
 // Ultra Sonic Sensor constants
-const int ECHO_PIN = 12;
-const int TRIG_PIN = 18;
+const int ECHO_PIN = 20;
+const int TRIG_PIN = 21;
 
 const float MAX_DISTANCE = 40.0;
 
@@ -63,6 +63,8 @@ const float L_MOTOR_FACTOR = 1.0;
 const float R_MOTOR_FACTOR = 1.0;
 const float L_MOTOR_FACTOR_THRESHOLD = 80;
 const float R_MOTOR_FACTOR_THRESHOLD = 80;
+
+
 
 //ultrasonic timing
 unsigned long usCm;
@@ -143,6 +145,8 @@ float dist = 0;
 unsigned long CECm;
 unsigned long CEPm;
 const unsigned long CE_PERIOD = 8;
+
+int i = 1;
 
 void setup() {
   // put your setup code here, to run once:
@@ -259,9 +263,19 @@ void loop() {
       buzzer.play("c32");
     }
     
-    if(currentGoal == NUMBER_OF_GOALS){
+    if(currentGoal == NUMBER_OF_GOALS)
+    {
       motors.setSpeeds(0, 0);
-    }else{  
+      if(i == 1)
+      {
+        i++;
+        buzzer.play("ER16ER16E2R8");
+
+      }
+      
+    }
+    else
+    {  
     //Set the motors given the result
       setMotors(pidResult);
     }
