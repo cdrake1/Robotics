@@ -24,11 +24,12 @@ const boolean DERIVATIVE_DEBUG = false;
 const boolean PID_DEBUG = false;
 const boolean XY_DEBUG = false;
 const boolean THETA_DEBUG = false;
-const boolean DETECTION_DEBUG = true;
+const boolean DETECTION_DEBUG = false;
+const boolean OBJECT_DEBUG = true;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
-const boolean MOTORS_ON = false;
+const boolean MOTORS_ON = true;
 
 // Head Servo Timing
 unsigned long headCm;
@@ -40,9 +41,11 @@ const int HEAD_SERVO_PIN = 20;
 const int NUM_HEAD_POSITIONS = 5;
 const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {150, 120, 90, 60, 30};
 const float HEAD_ANGLES[NUM_HEAD_POSITIONS] = {1.0472,.523599,0,-.523599,-1.0472};
-const float POSITION_WEIGHT[NUM_HEAD_POSITIONS] = {.25, 1, 4, 1, .25};
+const float POSITION_WEIGHT[NUM_HEAD_POSITIONS] = {.25, 1, 3, 1, .25};
 float objectX[NUM_HEAD_POSITIONS];
 float objectY[NUM_HEAD_POSITIONS]; 
+float objectAngle[NUM_HEAD_POSITIONS];
+float objectDistance[NUM_HEAD_POSITIONS];
 //const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {90};
 
 // head servo data
@@ -53,13 +56,13 @@ int currentHeadPosition = 0;
 const int ECHO_PIN = 12;
 const int TRIG_PIN = 18;
 
-const float MAX_DISTANCE = 100.0;
+const float MAX_DISTANCE = 30.0;
 
 const float DISTANCE_FACTOR = MAX_DISTANCE / 100;
 const float STOP_DISTANCE = 5;
 
 // Motor constants
-float MOTOR_BASE_SPEED = -50.0;
+float MOTOR_BASE_SPEED = -80.0;
 const int MOTOR_MIN_SPEED = 30;
 // determine the normalization factor based on motorBaseSpeed
 const float MOTOR_FACTOR =  MOTOR_BASE_SPEED / 100;
@@ -113,9 +116,9 @@ const unsigned long PID_PERIOD = 8;
 boolean pidFlag = false;
 
 // goals
-const int NUMBER_OF_GOALS = 1;
-float xGoals[NUMBER_OF_GOALS] = {90};
-float yGoals[NUMBER_OF_GOALS] = {0};
+const int NUMBER_OF_GOALS = 2;
+float xGoals[NUMBER_OF_GOALS] = {30, 60};
+float yGoals[NUMBER_OF_GOALS] = {0, 0};
 int currentGoal = 0;
 
 float error;
@@ -154,7 +157,7 @@ const unsigned long CE_PERIOD = 8;
 
 int i = 1;
 
-const float OBSTACLE_THRESHOLD = 20.0;
+const float OBSTACLE_THRESHOLD = 30.0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -264,43 +267,35 @@ void loop() {
       Serial.println(derivative);
     }
 
-    if(currentReadPosition < NUM_HEAD_POSITIONS){
-      if(distanceReadings[currentReadPosition] < OBSTACLE_THRESHOLD){
-        // obstacle detected, update desiredTheta
-        desiredTheta += PI/4; // for example, turn 45 degrees to avoid obstacle
-          if(desiredTheta > 2*PI){
-            desiredTheta -= 2*PI;
-          }
+    
+    // Calculate object coordinates
+    objectAngle[currentReadPosition] = currentTheta + HEAD_ANGLES[currentReadPosition]; // angle of the ultrasonic sensor relative to robot's heading
+    objectX[currentReadPosition] = currentX + distanceReadings[currentReadPosition] * cos(objectAngle[currentReadPosition]); // calculate x coordinate
+    objectY[currentReadPosition] = currentY + distanceReadings[currentReadPosition] * sin(objectAngle[currentReadPosition]); // calculate y coordinate
 
-        // Calculate object coordinates
-        float objectDistance = distanceReadings[currentReadPosition];
-        float objectAngle = currentTheta + HEAD_ANGLES[currentReadPosition]; // angle of the ultrasonic sensor relative to robot's heading
-        objectX[currentReadPosition] = currentX + objectDistance * cos(objectAngle); // calculate x coordinate
-        objectY[currentReadPosition] = currentY + objectDistance * sin(objectAngle); // calculate y coordinate
-
-        if(DETECTION_DEBUG) {
-      Serial.print("X Distances: [ ");
+    // Debugging for Object Sensing
+    if(OBJECT_DEBUG) {
+      Serial.print("Object Theta: [ ");
       for(int i = 0; i < NUM_HEAD_POSITIONS; i++){
-        Serial.print(objectX[i]);
-        if(i < (NUM_HEAD_POSITIONS - 1)) Serial.print(" - ");
-
+        Serial.print(objectAngle[i]);
+          if(i < (NUM_HEAD_POSITIONS - 1)) Serial.print(" - ");
       }
       Serial.print(" ]");
     
-      Serial.print(" Y Distances: [ ");
+      Serial.print(" Object Distance: [ ");
       for(int i = 0; i < NUM_HEAD_POSITIONS; i++){
-        Serial.print(objectY[i]);
+        Serial.print(distanceReadings[i]);
         if(i < (NUM_HEAD_POSITIONS - 1)) Serial.print(" - ");
-
       }
       Serial.println(" ]");
     }
-      }
-  }
-
+      
     // Calcuate the Pid Result by taking the sum of the Proportional, Integral and Derivative values
     pidResult = proportional + integral + derivative;
 
+    for(int i = 0; i<NUM_HEAD_POSITIONS; i++){
+      pidResult += (MAX_DISTANCE - distanceReadings[i]) * POSITION_WEIGHT[i]; 
+    }
 
     if(distanceFromGoal < 2.0){
       currentGoal++;
