@@ -25,7 +25,7 @@ const boolean PID_DEBUG = false;
 const boolean XY_DEBUG = false;
 const boolean THETA_DEBUG = false;
 const boolean DETECTION_DEBUG = false;
-const boolean OBJECT_DEBUG = true;
+const boolean OBJECT_DEBUG = false;
 
 const boolean SERVO_ON = true;
 const boolean US_ON = true;
@@ -34,14 +34,14 @@ const boolean MOTORS_ON = true;
 // Head Servo Timing
 unsigned long headCm;
 unsigned long headPm;
-const unsigned long HEAD_MOVEMENT_PERIOD = 300;
+const unsigned long HEAD_MOVEMENT_PERIOD = 150;
 
 // Head servo constants
 const int HEAD_SERVO_PIN = 20;
-const int NUM_HEAD_POSITIONS = 5;
-const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {150, 120, 90, 60, 30};
-const float HEAD_ANGLES[NUM_HEAD_POSITIONS] = {1.0472,.523599,0,-.523599,-1.0472};
-const float POSITION_WEIGHT[NUM_HEAD_POSITIONS] = {.30, 1.25, 4, 1.25, .30};
+const int NUM_HEAD_POSITIONS = 9;
+const int HEAD_POSITIONS[NUM_HEAD_POSITIONS] = {150, 135, 120, 105, 90, 75, 60, 45, 30};
+float HEAD_ANGLES[NUM_HEAD_POSITIONS];
+const float POSITION_WEIGHT[NUM_HEAD_POSITIONS] = {-.10,-.25,-.50,-1.0,3.8,-1.0,.50,.25,.10};
 float objectX[NUM_HEAD_POSITIONS];
 float objectY[NUM_HEAD_POSITIONS]; 
 float objectAngle[NUM_HEAD_POSITIONS];
@@ -62,8 +62,8 @@ const float DISTANCE_FACTOR = MAX_DISTANCE / 100;
 const float STOP_DISTANCE = 5;
 
 // Motor constants
-float MOTOR_BASE_SPEED = -90.0;
-const int MOTOR_MIN_SPEED = -30;
+float MOTOR_BASE_SPEED = -100.0;
+const int MOTOR_MIN_SPEED = 30;
 // determine the normalization factor based on motorBaseSpeed
 const float MOTOR_FACTOR =  MOTOR_BASE_SPEED / 100;
 
@@ -77,7 +77,7 @@ const float R_MOTOR_FACTOR_THRESHOLD = 80;
 unsigned long usCm;
 unsigned long usPm;
 const unsigned long US_PERIOD = 50;
-const unsigned long WAIT_AFTER_HEAD_STARTS_MOVING = 200;
+const unsigned long WAIT_AFTER_HEAD_STARTS_MOVING = 100;
 boolean usReadFlag = false;
 
 // current US distance reading
@@ -88,7 +88,7 @@ float distanceReadings[NUM_HEAD_POSITIONS];
 // Motor Timing
 unsigned long motorCm;
 unsigned long motorPm;
-const unsigned long MOTOR_PERIOD = 8;
+const unsigned long MOTOR_PERIOD = 12;
 
 float distance = 0;
 
@@ -97,26 +97,28 @@ long countsRight = 0;
 long prevLeft = 0;
 long prevRight = 0;
 
-const double desiredDistance[] =  {20.0,20.0,40.0};
-double shortestDistance = distanceReadings[0];
-
-const double kp = 30;
+const double kp = 35;
 const double ki = 0;
 const double kd = 0;
 
-double kiTotal = 0;
-double priorError= 0;
+double kiTotal = 0.0;
+double priorError= 0.0;
 
 unsigned long pidCm;
 unsigned long pidPm;
-const unsigned long PID_PERIOD = 8;
+const unsigned long PID_PERIOD = 12;
 
 boolean pidFlag = false;
 
 // goals
-const int NUMBER_OF_GOALS = 6;
-float xGoals[NUMBER_OF_GOALS] = {90, 120, 210, 240, 330, 0};
-float yGoals[NUMBER_OF_GOALS] = {0, -30, -30, -90, -90, 0};
+/*
+const int NUMBER_OF_GOALS = 5;
+float xGoals[NUMBER_OF_GOALS] = {90, 120, 210, 240, 0};
+float yGoals[NUMBER_OF_GOALS] = {0, -30, -30, -90, 0};
+*/
+const int NUMBER_OF_GOALS = 2;
+float xGoals[NUMBER_OF_GOALS] = {240, 0};
+float yGoals[NUMBER_OF_GOALS] = {-90, 0};
 int currentGoal = 0;
 
 float error;
@@ -151,11 +153,9 @@ float dist = 0;
 
 unsigned long CECm;
 unsigned long CEPm;
-const unsigned long CE_PERIOD = 8;
+const unsigned long CE_PERIOD = 12;
 
 int i = 1;
-
-const float OBSTACLE_THRESHOLD = 30.0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -164,6 +164,11 @@ void setup() {
 
   pinMode(ECHO_PIN, INPUT);
   pinMode(TRIG_PIN, OUTPUT);
+
+  
+  for(int i=0; i<NUM_HEAD_POSITIONS; i++){
+    HEAD_ANGLES[i] = ((HEAD_POSITIONS[i]-90)*PI/180);
+  }
 
   headServo.attach(HEAD_SERVO_PIN);
   headServo.write(155);
@@ -222,7 +227,6 @@ void loop() {
     }
 
     error = desiredTheta - currentTheta;
-    error = atan2(sin(error), cos(error));
 
     // checks to see if the other direction is shorter
     if((2*PI)+error < abs(error))
@@ -245,8 +249,7 @@ void loop() {
     // Calculate the Integral value
     kiTotal += error;
 
-    if(kiTotal > 50)
-      kiTotal/=2;
+    if(kiTotal > 6) kiTotal = 0;
 
     integral = ki * kiTotal;
 
@@ -260,17 +263,17 @@ void loop() {
 
     // sets the prior error
     priorError = error;
+    error = atan2(sin(error), cos(error));
 
     // Used for Derivative Debugging
     if(DERIVATIVE_DEBUG){
       Serial.println(derivative);
     }
 
-    
     // Calculate object coordinates
     objectAngle[currentReadPosition] = currentTheta + HEAD_ANGLES[currentReadPosition]; // angle of the ultrasonic sensor relative to robot's heading
-    objectX[currentReadPosition] = currentX + distanceReadings[currentReadPosition] * cos(objectAngle[currentReadPosition]); // calculate x coordinate
-    objectY[currentReadPosition] = currentY + distanceReadings[currentReadPosition] * sin(objectAngle[currentReadPosition]); // calculate y coordinate
+    //objectX[currentReadPosition] = currentX + distanceReadings[currentReadPosition] * cos(objectAngle[currentReadPosition]); // calculate x coordinate
+    //objectY[currentReadPosition] = currentY + distanceReadings[currentReadPosition] * sin(objectAngle[currentReadPosition]); // calculate y coordinate
 
     // Debugging for Object Sensing
     if(OBJECT_DEBUG) {
@@ -308,7 +311,6 @@ void loop() {
         i++;
         buzzer.play("ER16ER16E2R8");
       }
-      
     }
     else
     {  
@@ -319,19 +321,15 @@ void loop() {
     // update the current theta
     currentTheta += deltaTheta;
     
-    
     previousSl = Sl;
     previousSr = Sr;
     pidPm = pidCm;
   }  
 
   moveHead();
-
 }
 
-
 void checkEncoders() {
-
   //Retrieves the counts of the left and right encoders, when current time exceeds the previous time plus the period constant
   CECm = millis();
   if(CECm > CEPm + CE_PERIOD){
