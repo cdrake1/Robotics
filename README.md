@@ -1,2 +1,2 @@
 # Robotics
-group work on 3pi+
+A collection of projects to operate a Pololue 3pi+ robot.
