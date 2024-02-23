@@ -1,2 +1,2 @@
 # Robotics
-A collection of projects to operate a Pololue 3pi+ robot.
+A collection of projects to operate a Pololu 3pi+ robot.
