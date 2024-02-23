@@ -1,2 +1,2 @@
 # Robotics
-A collection of projects to operate a Pololu 3pi+ robot.
+In this repository, you'll find a collection of projects developed by our group. Each project represents a step and milestone in our learning process. We developed our robot starting with basic movements and slowly moving on to more complex navigation like PID, localization, object following, and wall following. We used the **Pololu 3pi+**.
